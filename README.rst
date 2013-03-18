@@ -21,8 +21,14 @@ Dependencies :
 Install the Dependencies:
 --------------------------------
 
-Dependencies *requests*, *signal*, *sys*, *calendar*, *datetime* comes preinstalled with python.
+Dependencies *signal*, *sys*, *calendar*, *datetime* comes preinstalled with python.
 
 1. fbconsole    : http://github.com/facebook/fbconsole
 2. xlwt         : https://pypi.python.org/pypi/xlwt
+
+You might need to upgrade requests. Execute the following code to upgrade requests
+
+::pip install requests --upgrade
+
+
 
