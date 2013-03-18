@@ -26,9 +26,8 @@ Dependencies *signal*, *sys*, *calendar*, *datetime* comes preinstalled with pyt
 1. fbconsole    : http://github.com/facebook/fbconsole
 2. xlwt         : https://pypi.python.org/pypi/xlwt
 
-You might need to upgrade requests. Execute the following code to upgrade requests
-
-::pip install requests --upgrade
+You might need to upgrade requests. Execute the following code to upgrade requests::
+    pip install requests --upgrade
 
 
 
