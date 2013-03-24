@@ -76,7 +76,7 @@ def main():
       stdout.write('\r'+out)
       stdout.flush()
       
-      #Sending a post to wall_feed , wall_comments , wall_likes which filters out the required data and writes them to the corresponding sheets
+      #Sending a post to wall_posts , wall_comments , wall_likes which filters out the required data and writes them to the corresponding tables
       row_feed, c = wall_posts(c, row_feed, post )
       row_comments, c = wall_comments(c, row_comments , post)
       row_likes, c = wall_likes(c, row_likes , post)
@@ -86,7 +86,7 @@ def main():
     url=req.json()['paging']['next']
     req = get(url)
   
-  #Saving the workbook after fetching all data
+  #Saving the database after fetching all data
   
   conn.commit()
   print'\n\nDatabase Saved. Database name : ',file_name
@@ -102,12 +102,7 @@ def wall_posts(c, row, post):
     except : posts_list.append(0)
     posts_list.insert(12,timecalc(posts_list[10]))
     
-    #print wall_list[0]
-    
     c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
-    #for col in range(len(wall_list)):  
-        #print row, col, wall_list[col]
-     #   wall_feed_sheet.write(row, col, wall_list[col])
     return row+1, c
 
 
@@ -121,8 +116,6 @@ def wall_comments(c, row, post):
 	            except: comment_list.append(0)
 	  
                 c.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?,?)",comment_list)
-#	            for col in range(len(comment_list)):
-#	                wall_comments_sheet.write(row,col,comment_list[col])
         except:
             pass
         row+=1
@@ -140,8 +133,6 @@ def wall_likes(c, row, post):
                     like_list = [row, userid, username, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
                     
                     c.execute("INSERT INTO likes VALUES (?,?,?,?,?,?,?,?)",like_list)
-#                    for col in range(len(like_list)):
- #                       wall_likes_sheet.write(row, col, like_list[col])
     	            row+=1
             except:
                 pass
