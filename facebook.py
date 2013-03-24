@@ -5,16 +5,15 @@ import signal
 from sys import exit , stdout
 from os import makedirs
 from calendar import isleap
-from xlwt import Workbook 
 from datetime import datetime
-
+import sqlite3
 
 def signal_handler(signal, frame):
   try:
-      book.save('OUTPUT/'+file_name)
-      print'\n\nWorkbook Saved. Workbook name: ',file_name
+      conn.commit()
+      print'\n\nDB Saved. DB name: ',file_name
   except:
-      print '\nWorkbook not saved.'
+      print '\nDB not saved.'
   
   fbconsole.logout()
   print '\nLogout Successful.'
@@ -32,14 +31,14 @@ def main():
   url=fbconsole.graph_url('/me/feed')   #fb graph url for user's wall feed
   req = get(url)               #requests module to get data from the url
   url_me=fbconsole.graph_url('/me')     #fb graph url for user's about me
-  req_me=get(url_me)           #fetching user's about me
+  me=get(url_me).json()           #fetching user's about me
   global username
   global userid
   global file_name
-  username = req_me.json()['name']
-  userid = req_me.json()['id']
+  username = me['name']
+  userid = me['id']
   now=str(datetime.now())[:-7]
-  file_name = username+'_'+now.split()[0]+'_'+now.split()[1]+'.xls'
+  global conn
   
   try:
     makedirs('OUTPUT/')
@@ -47,28 +46,30 @@ def main():
   except:
     pass
   
-  #creating workbook 
-  global book
-  book=Workbook()
+  file_name='OUTPUT/'+username+'_'+now.split()[0]+'_'+now.split()[1]+'.db'
+  conn = sqlite3.connect(file_name)
+  c = conn.cursor() 
+
   
-  #Creating excel sheet
-  wall_feed_sheet = book.add_sheet('feed')
-  wall_comments_sheet = book.add_sheet('comments')
-  wall_likes_sheet = book.add_sheet('likes')
-  #Setting design for writing
-  
-  #Lists data to publish as headers
-  heading_feed = ['Serial','Account ID','Account name','User ID','User Name','Post ID','Date Created','Time Created','Date Updated','Time Updated','Life','Life (in hours)','Type','Comments','Likes']
-  heading_comments = ['Serial','Account ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes']
-  heading_likes = ['Serial','Account ID','Account name','Post ID','Created Date','Created Time','like_by_id','like_by']
-  #Writing headers
-  for i in range(len(heading_feed)): wall_feed_sheet.write(0,i, heading_feed[i])
-  for i in range(len(heading_comments)): wall_comments_sheet.write(0,i, heading_comments[i])
-  for i in range(len(heading_likes)): wall_likes_sheet.write(0,i, heading_likes[i])
+  #Creating tables
+  c.execute('''CREATE TABLE posts
+               ('Serial','Account ID','Account name','User ID','User Name','P    ost ID','Date Created','Time Created','Date Updated','Time Updated','Life','Lif    e (in hours)','Type','Comments','Likes')''' )
+  c.execute('''CREATE TABLE comments
+               ('Serial','Account ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes')''')
+  c.execute('''CREATE TABLE likes
+               ('Serial','Account ID','Account name','Post ID','Created Date    ','Created Time','like_by_id','like_by')''')
+  c.execute('''CREATE TABLE profile
+               ('Account ID', 'Account Name', 'username', 'gender', 'current location')''')  
   print 
   row_feed=1 ; row_comments = 1 ; row_likes = 1
+  
+  profile_list = [userid,username,me['username'],me['gender']]
+  try : profile_list.append(me['location']['name'])
+  except: profile_list.append(me['hometown']['name'])
+  c.execute('INSERT INTO profile VALUES (?,?,?,?,?)', profile_list)
+  
   while len(req.json()['data'])!=0:
-    print url
+    #print url
     for post in req.json()['data']:
       #printing status in the terminal
       out = username + '    '+str(post['created_time'][0:10])+'    Posts : '+str(row_feed)+'    Comments : '+str(row_comments-1)+'    Likes : '+str(row_likes-1) 
@@ -76,95 +77,77 @@ def main():
       stdout.flush()
       
       #Sending a post to wall_feed , wall_comments , wall_likes which filters out the required data and writes them to the corresponding sheets
-      row_feed, wall_feed_sheet = wall_feed(wall_feed_sheet, row_feed, post )
-      row_comments, wall_comments_sheet = wall_comments(wall_comments_sheet, row_comments , post)
-      row_likes, wall_likes_sheet = wall_likes(wall_likes_sheet, row_likes , post)
-      
+      row_feed, c = wall_posts(c, row_feed, post )
+      row_comments, c = wall_comments(c, row_comments , post)
+      row_likes, c = wall_likes(c, row_likes , post)
+    
+
     #Moving over to the next page
     url=req.json()['paging']['next']
     req = get(url)
   
   #Saving the workbook after fetching all data
-  book.save('OUTPUT/'+file_name)
-  print'\n\nWorkbook Saved. Workbook name : ',file_name
+  
+  conn.commit()
+  print'\n\nDatabase Saved. Database name : ',file_name
 
   #logging out of fbconsole
   fbconsole.logout()
   print '\nfbconsole log out successful.\n'
  
-def wall_feed(wall_feed_sheet, row, post):
-      col = 0
-      #filtering data and writing them to the wall_feed_sheet
-      wall_feed_sheet.write(row,col,row) ; col+=1
-      wall_feed_sheet.write(row,col,username) ; col+=1
-      wall_feed_sheet.write(row,col,userid) ; col+=1
-      wall_feed_sheet.write(row,col,post['from']['id']) ; col+=1
-      wall_feed_sheet.write(row,col,post['from']['name']) ; col+=1
-      wall_feed_sheet.write(row,col,post['id']) ; col+=1
-      wall_feed_sheet.write(row,col,post['created_time'][0:10]) ; col+=1
-      wall_feed_sheet.write(row,col,post['created_time'][11:-5]) ; col+=1
-      wall_feed_sheet.write(row,col,post['updated_time'][0:10]) ; col+=1  
-      wall_feed_sheet.write(row,col,post['updated_time'][11:-5]) ; col+=1
-      life,life_round=life_info(post['created_time'], post['updated_time'])
-      wall_feed_sheet.write(row,col,life) ; col+=1
-      wall_feed_sheet.write(row,col,life_round) ; col+=1
+def wall_posts(c, row, post):
+    #print row
+    posts_list=[row, username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], life_info(post['created_time'], post['updated_time']), post['type'], post['comments']['count']]
+    try: posts_list.append(post['likes']['count'])    
+    except : posts_list.append(0)
+    posts_list.insert(12,timecalc(posts_list[10]))
+    
+    #print wall_list[0]
+    
+    c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
+    #for col in range(len(wall_list)):  
+        #print row, col, wall_list[col]
+     #   wall_feed_sheet.write(row, col, wall_list[col])
+    return row+1, c
 
-      wall_feed_sheet.write(row,col,post['type']) ; col+=1  
-      wall_feed_sheet.write(row,col, post['comments']['count']) ; col+=1  	
-      try:
-          wall_feed_sheet.write(row,col, post['likes']['count']) ; col+=1
-      except:
-          wall_feed_sheet.write(row,col,0) ; col+=1
-      row+=1
-      return row, wall_feed_sheet
-      
-def wall_comments(wall_comments_sheet, row, post):
-    col = 0
-    #filtering data and writing them to the wall_feed_sheet
-    if post['comments']['count']!=0:
-	try:
-	    for comment in  post['comments']['data']:
-		wall_comments_sheet.write(row,col, row) ; col+=1
-		wall_comments_sheet.write(row,col, userid) ; col+=1
-		wall_comments_sheet.write(row,col, username) ; col+=1
-		wall_comments_sheet.write(row,col, post['id']) ; col+=1
-		wall_comments_sheet.write(row,col, comment['id']) ; col+=1
-		wall_comments_sheet.write(row,col, comment['from']['id']) ; col+=1
-		wall_comments_sheet.write(row,col, comment['from']['name']) ; col+=1
-		wall_comments_sheet.write(row,col, comment['created_time'][0:10]) ; col+=1
-		wall_comments_sheet.write(row,col, comment['created_time'][11:-5]) ; col+=1
-		try:
-		    wall_comments_sheet.write(row,col, comment['likes']) ; col+=1
-		except:
-		    wall_comments_sheet.write(row,col, 0 ) ; col+=1
-		row+=1
-		col=0
+
+def wall_comments(c, row, post):
+    
+    if post['comments']['count']!=0: 
+        try:
+	        for comment in post['comments']['data']:
+	            comment_list=[row, userid, username, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
+	            try: comment_list.append(comment['likes'])
+	            except: comment_list.append(0)
+	  
+                c.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?,?)",comment_list)
+#	            for col in range(len(comment_list)):
+#	                wall_comments_sheet.write(row,col,comment_list[col])
         except:
-	    pass
-    return row, wall_comments_sheet
+            pass
+        row+=1
+    return row, c
+    
+    
       
-def wall_likes(wall_likes_sheet, row, post):
+def wall_likes(c, row, post):
     #filtering data and writing them to the wall_feed_sheet
     col = 0
     try:
         if post['likes']['count']!=0:
             try:
     	        for like in  post['likes']['data']:
-		    wall_likes_sheet.write(row,col, row) ; col+=1
-                    wall_likes_sheet.write(row,col, userid) ; col+=1
-                    wall_likes_sheet.write(row,col, username) ; col+=1
-                    wall_likes_sheet.write(row,col, post['id']) ; col+=1
-                    wall_likes_sheet.write(row,col, post['created_time'][0:10]) ; col+=1
-                    wall_likes_sheet.write(row,col, post['created_time'][11:-5]) ; col+=1
-                    wall_likes_sheet.write(row,col, like['id']) ; col+=1
-                    wall_likes_sheet.write(row,col, like['name']) ; col+=1
+                    like_list = [row, userid, username, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
+                    
+                    c.execute("INSERT INTO likes VALUES (?,?,?,?,?,?,?,?)",like_list)
+#                    for col in range(len(like_list)):
+ #                       wall_likes_sheet.write(row, col, like_list[col])
     	            row+=1
-                    col=0
             except:
                 pass
     except:
         pass
-    return row, wall_likes_sheet
+    return row, c
   
 def timecalc(time):
     #this method returns the lifetime of the post (in hours) 
@@ -254,7 +237,7 @@ def life_info(start , end):
     life += str(c[4])+':'
     if len(str(c[5]))==1: life+='0'
     life += str(c[5])
-    return life,timecalc(life)
+    return life
 
 if __name__ == '__main__':
      main()
