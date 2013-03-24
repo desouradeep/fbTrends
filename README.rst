@@ -15,16 +15,15 @@ Dependencies :
 3. signal
 4. sys
 5. calendar
-6. xlwt
+6. sqlite3 
 7. datetime
 
 Install the Dependencies:
 --------------------------------
 
-Dependencies *signal*, *sys*, *calendar*, *datetime* comes preinstalled with python.
+Dependencies *signal*, *sys*, *calendar*, *datetime*, *sqlite3* comes preinstalled with python.
 
 1. fbconsole    : http://github.com/facebook/fbconsole
-2. xlwt         : https://pypi.python.org/pypi/xlwt
 
 You might need to upgrade requests. Execute the following code to upgrade requests::
     
