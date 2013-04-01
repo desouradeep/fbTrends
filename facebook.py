@@ -3,7 +3,7 @@ import fbconsole
 from requests import get
 import signal
 from sys import exit , stdout
-from os import makedirs
+from os import makedirs,remove
 from calendar import isleap
 from datetime import datetime
 import sqlite3
@@ -46,7 +46,14 @@ def main():
   except:
     pass
   
-  file_name='OUTPUT/'+username+'_'+now.split()[0]+'_'+now.split()[1]+'.db'
+  file_name='OUTPUT/'+username+'_'+userid+'.db'
+  try:
+    remove(file_name)
+    print 'Old Database',file_name,'was deleted.'
+  except:
+    pass
+  
+  print 'Creating new Database with the name :',file_name
   conn = sqlite3.connect(file_name)
   c = conn.cursor() 
 
