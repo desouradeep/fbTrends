@@ -16,12 +16,16 @@ def signal_handler(signal, frame):
       print '\nDB not saved.'
   
   fbconsole.logout()
-  print '\nLogout Successful.'
+  print '\nfbconsole logout Successful.'
   print 'Ctrl+C press event. Exiting Now.\n'
   exit(0)
 
 def main():
   #ctrl+c interrupt event
+  try:
+      fbconsole.logout()
+  except:
+      pass
   signal.signal(signal.SIGINT, signal_handler)
   
   #authenticating permission
@@ -29,9 +33,11 @@ def main():
   fbconsole.authenticate()
 
   url=fbconsole.graph_url('/me/feed')   #fb graph url for user's wall feed
-  req = get(url)               #requests module to get data from the url
+  req = get(url)                   #requests module to get data from the url
+  #except ConnectionError: network_error()
   url_me=fbconsole.graph_url('/me')     #fb graph url for user's about me
-  me=get(url_me).json()           #fetching user's about me
+  me=get(url_me).json()            #fetching user's about me
+  #except ConnectionError: network_error()
   global username
   global userid
   global file_name
@@ -40,41 +46,37 @@ def main():
   now=str(datetime.now())[:-7]
   global conn
   
-  try:
-    makedirs('OUTPUT/')
-    print 'Output directory created.'
-  except:
-    pass
-  
-  file_name='OUTPUT/'+username+'_'+userid+'.db'
-  try:
-    remove(file_name)
-    print 'Old Database',file_name,'was deleted.'
-  except:
-    pass
-  
-  print 'Creating new Database with the name :',file_name
+  file_name='fb_data.db'
   conn = sqlite3.connect(file_name)
   c = conn.cursor() 
 
   
   #Creating tables
-  c.execute('''CREATE TABLE posts
-               ('Serial','Account ID','Account name','User ID','User Name','P    ost ID','Date Created','Time Created','Date Updated','Time Updated','Life','Lif    e (in hours)','Type','Comments','Likes')''' )
-  c.execute('''CREATE TABLE comments
-               ('Serial','Account ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes')''')
-  c.execute('''CREATE TABLE likes
-               ('Serial','Account ID','Account name','Post ID','Created Date    ','Created Time','like_by_id','like_by')''')
-  c.execute('''CREATE TABLE profile
-               ('Account ID', 'Account Name', 'username', 'gender', 'current location')''')  
+  try:
+      c.execute('''CREATE TABLE posts
+               ('Account name','Account_ID','User ID','User Name','P    ost ID','Date Created','Time Created','Date Updated','Time Updated','Life','Lif    e (in hours)','Type','Comments','Likes')''' )
+      c.execute('''CREATE TABLE comments
+               ('Account_ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes')''')
+      c.execute('''CREATE TABLE likes
+               ('Account_ID','Account name','Post ID','Created Date    ','Created Time','like_by_id','like_by')''')
+      c.execute('''CREATE TABLE profile
+               ('Account_ID', 'Account Name', 'username', 'gender', 'current location')''')  
+      print '\nTables created. Adding data to the tables.'
+  except:
+      print '\nTables already exist. Adding data to the tables.'
   print 
   row_feed=1 ; row_comments = 1 ; row_likes = 1
+  
+  
+  c.execute('DELETE FROM profile WHERE Account_ID=?',(userid,))
+  c.execute('DELETE FROM posts WHERE Account_ID=?',(userid,))
+  c.execute('DELETE FROM comments WHERE Account_ID=?',(userid,))
+  c.execute('DELETE FROM likes WHERE Account_ID=?',(userid,))
   
   profile_list = [userid,username,me['username'],me['gender']]
   try : profile_list.append(me['location']['name'])
   except: profile_list.append(me['hometown']['name'])
   c.execute('INSERT INTO profile VALUES (?,?,?,?,?)', profile_list)
-  
   while len(req.json()['data'])!=0:
     #print url
     for post in req.json()['data']:
@@ -92,6 +94,7 @@ def main():
     #Moving over to the next page
     url=req.json()['paging']['next']
     req = get(url)
+    #except ConnectionError: network_error()
   
   #Saving the database after fetching all data
   
@@ -104,12 +107,12 @@ def main():
  
 def wall_posts(c, row, post):
     #print row
-    posts_list=[row, username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], life_info(post['created_time'], post['updated_time']), post['type'], post['comments']['count']]
+    posts_list=[username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], life_info(post['created_time'], post['updated_time']), post['type'], post['comments']['count']]
     try: posts_list.append(post['likes']['count'])    
     except : posts_list.append(0)
     posts_list.insert(12,timecalc(posts_list[10]))
     
-    c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
+    c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
     return row+1, c
 
 
@@ -118,11 +121,11 @@ def wall_comments(c, row, post):
     if post['comments']['count']!=0: 
         try:
 	        for comment in post['comments']['data']:
-	            comment_list=[row, userid, username, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
+	            comment_list=[userid, username, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
 	            try: comment_list.append(comment['likes'])
 	            except: comment_list.append(0)
 	  
-                c.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?,?)",comment_list)
+                c.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)",comment_list)
         except:
             pass
         row+=1
@@ -137,16 +140,16 @@ def wall_likes(c, row, post):
         if post['likes']['count']!=0:
             try:
     	        for like in  post['likes']['data']:
-                    like_list = [row, userid, username, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
+                    like_list = [userid, username, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
                     
-                    c.execute("INSERT INTO likes VALUES (?,?,?,?,?,?,?,?)",like_list)
+                    c.execute("INSERT INTO likes VALUES (?,?,?,?,?,?,?)",like_list)
     	            row+=1
             except:
                 pass
     except:
         pass
     return row, c
-  
+
 def timecalc(time):
     #this method returns the lifetime of the post (in hours) 
     #time is a string of the format YY years, MM months, DD days, hh:mm:ss or simply hh:mm:ss as the case may be
@@ -165,6 +168,15 @@ def timecalc(time):
 	    return hours  # when time mentioned only as years,months or days
         else:
             return ''	  # in case of a string (the heading)
+
+def network_error():
+    print 'Error in network connection.'
+    print 'Saving Workbook...'
+    conn.commit()
+    print 'Database saved'
+    fbconsole.logout()
+    print 'fbconsole logout successful.'
+    exit(0)
 
 def life_info(start , end):
     #This method returns to values. 
