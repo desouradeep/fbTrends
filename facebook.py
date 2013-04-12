@@ -72,10 +72,27 @@ def main():
   c.execute('DELETE FROM posts WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM comments WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM likes WHERE Account_ID=?',(userid,))
-  
   profile_list = [userid,username,me['username'],me['gender']]
-  try : profile_list.append(me['location']['name'])
-  except: profile_list.append(me['hometown']['name'])
+
+  current_city = False ; home_town = False
+  try :
+    profile_list.append(me['location']['name'])
+    current_city = True
+  except :
+    pass
+ 
+  if current_city == False:
+    try: 
+        profile_list.append(me['hometown']['name'])
+        home_town = True
+    except: 
+        pass
+  
+  if current_city is False:
+      print 'Current City not accesible.'
+      if home_town is False : print 'Home Town not accesible.'
+  if current_city is False and home_town is False: profile_list.append('N/A')
+
   c.execute('INSERT INTO profile VALUES (?,?,?,?,?)', profile_list)
   while len(req.json()['data'])!=0:
     #print url
@@ -89,7 +106,6 @@ def main():
       row_feed, c = wall_posts(c, row_feed, post )
       row_comments, c = wall_comments(c, row_comments , post)
       row_likes, c = wall_likes(c, row_likes , post)
-    
 
     #Moving over to the next page
     url=req.json()['paging']['next']
@@ -100,7 +116,7 @@ def main():
   
   conn.commit()
   print'\n\nDatabase Saved. Database name : ',file_name
-
+  print url
   #logging out of fbconsole
   fbconsole.logout()
   print '\nfbconsole log out successful.\n'
