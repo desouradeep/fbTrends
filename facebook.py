@@ -54,13 +54,13 @@ def main():
   #Creating tables
   try:
       c.execute('''CREATE TABLE posts
-               ('Account name','Account_ID','User ID','User Name','P    ost ID','Date Created','Time Created','Date Updated','Time Updated','Life','Lif    e (in hours)','Type','Comments','Likes')''' )
+               ('Account name','Account_ID','User ID','User Name','Post ID','Date Created','Time Created','Date Updated','Time Updated','Life','Life (in hours)','Type','Comments','Likes')''' )
       c.execute('''CREATE TABLE comments
                ('Account_ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes')''')
       c.execute('''CREATE TABLE likes
-               ('Account_ID','Account name','Post ID','Created Date    ','Created Time','like_by_id','like_by')''')
+               ('Account_ID','Account name','Post ID','Created Date','Created Time','like_by_id','like_by')''')
       c.execute('''CREATE TABLE profile
-               ('Account_ID', 'Account Name', 'username', 'gender', 'current location')''')  
+               ('Account_ID', 'Account Name', 'username', 'gender', 'location')''')  
       print '\nTables created. Adding data to the tables.'
   except:
       print '\nTables already exist. Adding data to the tables.'
@@ -123,11 +123,12 @@ def main():
  
 def wall_posts(c, row, post):
     #print row
-    posts_list=[username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], life_info(post['created_time'], post['updated_time']), post['type'], post['comments']['count']]
+    lifeinfo = life_info(post['created_time'], post['updated_time'])
+    hours = timecalc(lifeinfo)
+    posts_list=[username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], lifeinfo , hours , post['type'], post['comments']['count']]
     try: posts_list.append(post['likes']['count'])    
     except : posts_list.append(0)
-    posts_list.insert(12,timecalc(posts_list[10]))
-    
+    #posts_list.insert(12,timecalc(posts_list[10]))
     c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
     return row+1, c
 
@@ -180,19 +181,7 @@ def timecalc(time):
         if int(time[1]) >= 30 : hours += 1
         return hours
     except:
-	if hours>0:
 	    return hours  # when time mentioned only as years,months or days
-        else:
-            return ''	  # in case of a string (the heading)
-
-def network_error():
-    print 'Error in network connection.'
-    print 'Saving Workbook...'
-    conn.commit()
-    print 'Database saved'
-    fbconsole.logout()
-    print 'fbconsole logout successful.'
-    exit(0)
 
 def life_info(start , end):
     #This method returns to values. 
