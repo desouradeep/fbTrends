@@ -37,16 +37,18 @@ def main():
   #except ConnectionError: network_error()
   url_me=fbconsole.graph_url('/me')     #fb graph url for user's about me
   me=get(url_me).json()            #fetching user's about me
+  print url_me
   #except ConnectionError: network_error()
-  global username
+  global name
   global userid
   global file_name
-  username = me['name']
+  
+  name = me['name']
   userid = me['id']
-  now=str(datetime.now())[:-7]
+  now = str(datetime.now())[:-7]
   global conn
   
-  file_name='fb_data.db'
+  file_name = 'fb_data.db'
   conn = sqlite3.connect(file_name)
   c = conn.cursor() 
 
@@ -72,7 +74,13 @@ def main():
   c.execute('DELETE FROM posts WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM comments WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM likes WHERE Account_ID=?',(userid,))
-  profile_list = [userid,username,me['username'],me['gender']]
+  try:
+    username = me['username']
+  except: 
+    username = 'N/A'
+    print 'Username is not accesible.\n'
+    
+  profile_list = [userid, name, username, me['gender']]
 
   current_city = False ; home_town = False
   try :
@@ -89,8 +97,8 @@ def main():
         pass
   
   if current_city is False:
-      print 'Current City not accesible.'
-      if home_town is False : print 'Home Town not accesible.'
+      print 'Current City not accesible.\n'
+      if home_town is False : print 'Home Town not accesible.\n'
   if current_city is False and home_town is False: profile_list.append('N/A')
 
   c.execute('INSERT INTO profile VALUES (?,?,?,?,?)', profile_list)
@@ -98,7 +106,7 @@ def main():
     #print url
     for post in req.json()['data']:
       #printing status in the terminal
-      out = username + '    '+str(post['created_time'][0:10])+'    Posts : '+str(row_feed)+'    Comments : '+str(row_comments-1)+'    Likes : '+str(row_likes-1) 
+      out = name + '    '+str(post['created_time'][0:10])+'    Posts : '+str(row_feed)+'    Comments : '+str(row_comments-1)+'    Likes : '+str(row_likes-1) 
       stdout.write('\r'+out)
       stdout.flush()
       
@@ -116,7 +124,7 @@ def main():
   
   conn.commit()
   print'\n\nDatabase Saved. Database name : ',file_name
-  print url
+  
   #logging out of fbconsole
   fbconsole.logout()
   print '\nfbconsole log out successful.\n'
@@ -125,7 +133,7 @@ def wall_posts(c, row, post):
     #print row
     lifeinfo = life_info(post['created_time'], post['updated_time'])
     hours = timecalc(lifeinfo)
-    posts_list=[username, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], lifeinfo , hours , post['type'], post['comments']['count']]
+    posts_list=[name, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], lifeinfo , hours , post['type'], post['comments']['count']]
     try: posts_list.append(post['likes']['count'])    
     except : posts_list.append(0)
     #posts_list.insert(12,timecalc(posts_list[10]))
@@ -138,7 +146,7 @@ def wall_comments(c, row, post):
     if post['comments']['count']!=0: 
         try:
 	        for comment in post['comments']['data']:
-	            comment_list=[userid, username, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
+	            comment_list=[userid, name, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
 	            try: comment_list.append(comment['likes'])
 	            except: comment_list.append(0)
 	  
@@ -157,7 +165,7 @@ def wall_likes(c, row, post):
         if post['likes']['count']!=0:
             try:
     	        for like in  post['likes']['data']:
-                    like_list = [userid, username, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
+                    like_list = [userid, name, post['id'], post['created_time'][0:10], post['created_time'][11:-5], like['id'], like['name']]
                     
                     c.execute("INSERT INTO likes VALUES (?,?,?,?,?,?,?)",like_list)
     	            row+=1
