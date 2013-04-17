@@ -3,7 +3,8 @@ import fbconsole
 from requests import get
 import signal
 from sys import exit , stdout
-from os import makedirs,remove
+from os import makedirs,path
+from shutil import copyfile
 from calendar import isleap
 from datetime import datetime
 import sqlite3
@@ -26,6 +27,19 @@ def main():
       fbconsole.logout()
   except:
       pass
+  global file_name
+  file_name = 'fb_data.db'
+  try:
+      current_dir = path.abspath('.')
+      src = path.join(current_dir,file_name)
+      backup_file_name = file_name+'.backup'
+      dest = path.join(current_dir,backup_file_name)
+      copyfile(src,dest)
+      print '\nDatabase backedup. Backup file name : %s.\n' % (backup_file_name)
+  except:
+      print '\nNo database to backup.\n'
+
+      
   signal.signal(signal.SIGINT, signal_handler)
   
   #authenticating permission
@@ -41,14 +55,12 @@ def main():
   #except ConnectionError: network_error()
   global name
   global userid
-  global file_name
   
   name = me['name']
   userid = me['id']
   now = str(datetime.now())[:-7]
   global conn
   
-  file_name = 'fb_data.db'
   conn = sqlite3.connect(file_name)
   c = conn.cursor() 
 
