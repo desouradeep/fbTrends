@@ -28,7 +28,7 @@ def main():
   except:
       pass
   global file_name
-  file_name = 'fb_data.db'
+  file_name = 'fb_data3.db'
   try:
       current_dir = path.abspath('.')
       src = path.join(current_dir,file_name)
@@ -41,17 +41,21 @@ def main():
 
       
   signal.signal(signal.SIGINT, signal_handler)
-  
+  fbconsole.APP_ID = '539684536073473'
   #authenticating permission
   fbconsole.AUTH_SCOPE=['read_stream']
   fbconsole.authenticate()
 
-  url=fbconsole.graph_url('/me/feed')   #fb graph url for user's wall feed
+  access_token = fbconsole.ACCESS_TOKEN
+  url = 'https://graph.facebook.com/me/feed?limit=5000&offset=0&access_token='+access_token
+  url_friends = 'https://graph.facebook.com/me/friends?limit=500&offset=0&access_token='+access_token
+  #print url 
+  #url=fbconsole.graph_url('/me/feed')   #fb graph url for user's wall feed
   req = get(url)                   #requests module to get data from the url
   #except ConnectionError: network_error()
   url_me=fbconsole.graph_url('/me')     #fb graph url for user's about me
   me=get(url_me).json()            #fetching user's about me
-  print url_me
+  friends = get(url_friends).json()
   #except ConnectionError: network_error()
   global name
   global userid
@@ -68,13 +72,16 @@ def main():
   #Creating tables
   try:
       c.execute('''CREATE TABLE posts
-               ('Account name','Account_ID','User ID','User Name','Post ID','Date Created','Time Created','Date Updated','Time Updated','Life','Life (in hours)','Type','Comments','Likes')''' )
+               ('Account name','Account_ID','User ID','User Name','Post ID','Date Created','Time Created','Date Updated','Time Updated','Life','Life (in hours)','Type','Comments','Likes','Content','Link')''' )
       c.execute('''CREATE TABLE comments
                ('Account_ID','Account name','Post ID','Comment ID','comment_by_id','comment_by','date','time','likes')''')
       c.execute('''CREATE TABLE likes
                ('Account_ID','Account name','Post ID','Created Date','Created Time','like_by_id','like_by')''')
       c.execute('''CREATE TABLE profile
                ('Account_ID', 'Account Name', 'username', 'gender', 'location')''')  
+      c.execute('''CREATE TABLE friendlist
+               ('Account_ID','Account name','Friend ID','Friend Name')''')
+                
       print '\nTables created. Adding data to the tables.'
   except:
       print '\nTables already exist. Adding data to the tables.'
@@ -86,6 +93,8 @@ def main():
   c.execute('DELETE FROM posts WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM comments WHERE Account_ID=?',(userid,))
   c.execute('DELETE FROM likes WHERE Account_ID=?',(userid,))
+  c.execute('DELETE FROM friendlist WHERE Account_ID=?',(userid,))
+  
   try:
     username = me['username']
   except: 
@@ -123,19 +132,27 @@ def main():
       stdout.flush()
       
       #Sending a post to wall_posts , wall_comments , wall_likes which filters out the required data and writes them to the corresponding tables
-      row_feed, c = wall_posts(c, row_feed, post )
-      row_comments, c = wall_comments(c, row_comments , post)
+      row_feed, c = wall_posts(c, row_feed, post)
+      row_comments, c = wall_comments(c, row_comments ,post)
       row_likes, c = wall_likes(c, row_likes , post)
 
     #Moving over to the next page
     url=req.json()['paging']['next']
     req = get(url)
-    #except ConnectionError: network_error()
-  
+
+  nfriends = 0
+  while len(friends['data']) != 0:
+    for friend in friends['data']:
+        friend_data = [userid, name, friend['id'], friend['name']]
+        c.execute("INSERT INTO friendlist VALUES (?,?,?,?)",friend_data)
+        nfriends += 1
+    url_friends = friends['paging']['next']
+    friends = get(url_friends).json()
+  print '\nNo. of friends found : ', nfriends
   #Saving the database after fetching all data
   
   conn.commit()
-  print'\n\nDatabase Saved. Database name : ',file_name
+  print'\nDatabase Saved. Database name : ',file_name
   
   #logging out of fbconsole
   fbconsole.logout()
@@ -145,19 +162,38 @@ def wall_posts(c, row, post):
     #print row
     lifeinfo = life_info(post['created_time'], post['updated_time'])
     hours = timecalc(lifeinfo)
-    posts_list=[name, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], lifeinfo , hours , post['type'], post['comments']['count']]
+    posts_list=[name, userid, post['from']['id'], post['from']['name'], post['id'], post['created_time'][0:10], post['created_time'][11:-5], post['updated_time'][0:10], post['updated_time'][11:-5], lifeinfo , hours , post['type']]
+    try:
+      comment_count = len(post['comments']['data'])
+      posts_list.append(comment_count)
+    except:
+      posts_list.append(0)
     try: posts_list.append(post['likes']['count'])    
     except : posts_list.append(0)
-    #posts_list.insert(12,timecalc(posts_list[10]))
-    c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
+    content = 'N/A'
+    link = 'N/A'
+    try: content = post['message']
+    except:
+        try: content = post['story']
+        except: pass
+    try: link = post['link']
+    except: pass
+
+
+    posts_list.append(content)
+    posts_list.append(link)
+    c.execute("INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", posts_list)
     return row+1, c
 
 
+   
+
 def wall_comments(c, row, post):
     
-    if post['comments']['count']!=0: 
+    try: 
+        info = post['comments']
         try:
-	        for comment in post['comments']['data']:
+	        for comment in info['data']:
 	            comment_list=[userid, name, post['id'], comment['id'], comment['from']['id'], comment['from']['name'], comment['created_time'][0:10], comment['created_time'][11:-5]]
 	            try: comment_list.append(comment['likes'])
 	            except: comment_list.append(0)
@@ -166,6 +202,9 @@ def wall_comments(c, row, post):
         except:
             pass
         row+=1
+    except:
+        pass
+      
     return row, c
     
     
