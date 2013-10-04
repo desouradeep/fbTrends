@@ -29,10 +29,10 @@ Browse:
 -------
 
 Open up a browser and go to the address::
- http://localhost:3000/
+ https://localhost:3000/
 
 Admin:
 ------
 
 To access the admin panel, go to::
- http://localhost:3000/admin
+ https://localhost:3000/admin

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+{% load staticfiles %}
+<html>
+<head>
+  <title>fbTrends</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="{{ STATIC_URL }}css/bootstrap.min.css" />
+  <script src="{{STATIC_URL}}js/jquery-1.10.2.min.js"></script> 
+  <script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
+  <style>
+  body {
+    padding-top: 60px;
+  }
+  </style>
+
+</head>
+<body>
+  <div id="fb-root"></div>
+  <script>
+  // Additional JS functions here
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '539684536073473', // App ID
+      channelUrl : '', // Channel File
+      status     : true, // check login status
+      cookie     : true, // enable cookies to allow the server to access the session
+      xfbml      : true  // parse XFBML
+    })
+    FB.Event.subscribe('auth.authResponseChange', function(response) {
+      if (response.status === 'connected') {
+        testAPI();
+        sendToken();
+      } else if (response.status === 'not_authorized') {
+        FB.login();
+      }
+    });
+  };
+
+  // Load the SDK asynchronously
+  (function(d){
+   var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+   if (d.getElementById(id)) {return;}
+   js = d.createElement('script'); js.id = id; js.async = true;
+   js.src = "//connect.facebook.net/en_US/all.js";
+   ref.parentNode.insertBefore(js, ref);
+ }(document));
+
+  function testAPI() {
+    console.log('Welcome!  Fetching your information.... ');
+    FB.api('/me', function(response) {
+      console.log('Good to see you, ' + response.name + '.');
+    });
+
+  }
+  function sendToken(){
+    console.log('Sending access_token to server...');
+    $.ajax({
+      type : 'POST',
+      data : {csrfmiddlewaretoken:'{{csrf_token}}', 'access_token':FB.getAuthResponse()['accessToken']},
+    });
+  }
+  
+  </script>
+
+<!--
+  Below we include the Login Button social plugin. This button uses the JavaScript SDK to
+  present a graphical Login button that triggers the FB.login() function when clicked.
+
+  Learn more about options for the login button plugin:
+  /docs/reference/plugins/login/ -->
+
+  <div class="navbar navbar-default navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">fbTrends</a>
+      </div>
+    </div>
+  </div>
+
+  <div class='container'>
+    <h1 style='text-align:center'>Help us collect some of your facebook data</h1><hr><br><br>
+    <div class='well' style='margin: 0 15%'>
+      <div class='row'>
+        <div class='col-xs-6'>
+          <h3>Login in to facebook: </h3><hr>
+          <p>You will be asked to give us access only to your public facebook data.</p><br>
+          <p>The data will sctrictly be used for Research and Development Purposes.</p><br>
+        </div>
+        <div class='col-xs-6'>
+          <div style='margin: 20%'>
+          <fb:login-button show-faces="true" width="200" max-rows="1"></fb:login-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
