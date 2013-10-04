@@ -18,6 +18,7 @@
 <body>
   <div id="fb-root"></div>
   <script>
+  var access_token_sent = false;
   // Additional JS functions here
   window.fbAsyncInit = function() {
     FB.init({
@@ -30,8 +31,13 @@
     FB.Event.subscribe('auth.authResponseChange', function(response) {
       if (response.status === 'connected') {
         testAPI();
-        sendToken();
+        if (access_token_sent === false) {
+          sendToken();
+          access_token_sent = true;
+        }
       } else if (response.status === 'not_authorized') {
+        FB.login();
+      } else {
         FB.login();
       }
     });
@@ -57,7 +63,7 @@
     console.log('Sending access_token to server...');
     $.ajax({
       type : 'POST',
-      data : {csrfmiddlewaretoken:'{{csrf_token}}', 'access_token':FB.getAuthResponse()['accessToken']},
+      data : {csrfmiddlewaretoken:'{{csrf_token}}', 'access_token':FB.getAuthResponse()['accessToken']}
     });
   }
   
@@ -73,22 +79,22 @@
   <div class="navbar navbar-default navbar-inverse navbar-fixed-top">
     <div class="container">
       <div class="navbar-header">
-        <a class="navbar-brand" href="/">fbTrends</a>
+        <a class="navbar-brand" href="#">fbTrends</a>
       </div>
     </div>
   </div>
 
   <div class='container'>
     <h1 style='text-align:center'>Help us collect some of your facebook data</h1><hr><br><br>
-    <div class='well' style='margin: 0 15%'>
+    <div class='well' style='margin: 0 20%;'>
+      <h3>Login in to facebook: </h3><hr>
       <div class='row'>
         <div class='col-xs-6'>
-          <h3>Login in to facebook: </h3><hr>
-          <p>You will be asked to give us access only to your public facebook data.</p><br>
-          <p>The data will sctrictly be used for Research and Development Purposes.</p><br>
+          <p>You will be asked to give us access only to your public facebook data, specifically youour News Feed.</p><br>
+          <p>The data will strictly be used for Research and Development Purposes.</p><br>
         </div>
         <div class='col-xs-6'>
-          <div style='margin: 20%'>
+          <div style='margin: 20px'>
           <fb:login-button show-faces="true" width="200" max-rows="1"></fb:login-button>
           </div>
         </div>
