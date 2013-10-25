@@ -1,2 +1,4 @@
 django==1.5.4
 requests==1.1.0
+jsonfield
+django-debug-toolbar

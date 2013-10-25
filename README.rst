@@ -6,6 +6,8 @@ Requirements:
 
 1. django == 1.5.4
 2. requests == 1.1.0
+3. jsonfield
+4. django-debug-toolbar
 
 If you have pip installed, install all these requirements, as::
 
